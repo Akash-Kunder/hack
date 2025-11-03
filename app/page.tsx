@@ -65,19 +65,26 @@ export default function Home() {
   const [workflows, setWorkflows] = useState<Workflow[]>(mockWorkflows)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
-  const [emailTasks, setEmailTasks] = useState([
+  const [emailTasks, setEmailTasks] = useState<Array<{
+    id: string
+    recipient: string
+    subject: string
+    status: 'pending' | 'sent' | 'failed'
+    scheduledAt: Date
+    sentAt?: Date
+  }>>([
     {
       id: '1',
       recipient: 'user@example.com',
       subject: 'Weekly Newsletter',
-      status: 'pending' as const,
+      status: 'pending',
       scheduledAt: new Date(Date.now() + 3600000)
     },
     {
       id: '2',
       recipient: 'team@company.com',
       subject: 'Project Update',
-      status: 'sent' as const,
+      status: 'sent',
       scheduledAt: new Date(Date.now() - 3600000),
       sentAt: new Date(Date.now() - 1800000)
     }
@@ -136,14 +143,14 @@ export default function Home() {
       if (response.ok) {
         setEmailTasks(prev => prev.map(t => 
           t.id === taskId 
-            ? { ...t, status: 'sent' as const, sentAt: new Date() }
+            ? { ...t, status: 'sent', sentAt: new Date() }
             : t
         ))
       }
     } catch (error) {
       setEmailTasks(prev => prev.map(t => 
         t.id === taskId 
-          ? { ...t, status: 'failed' as const }
+          ? { ...t, status: 'failed' }
           : t
       ))
     }
