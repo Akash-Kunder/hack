@@ -25,6 +25,12 @@ export default function WorkflowCard({ workflow, onToggle }: WorkflowCardProps) 
               {workflow.status}
             </span>
             <span className="text-sm text-gray-500">{workflow.steps.length} steps</span>
+            {workflow.steps.some(step => step.name.includes('Email')) && (
+              <div className="flex items-center space-x-1 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                <Mail size={12} />
+                <span>Email Automation</span>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex space-x-2">

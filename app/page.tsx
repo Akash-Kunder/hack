@@ -8,6 +8,8 @@ import CreateWorkflowModal from './components/CreateWorkflowModal'
 import EmailWorkflowModal from './components/EmailWorkflowModal'
 import EmailTaskCard from './components/EmailTaskCard'
 import AIContentGenerator from './components/AIContentGenerator'
+import EmailAutomationIndicator from './components/EmailAutomationIndicator'
+import EmailNotificationBanner from './components/EmailNotificationBanner'
 import { Workflow, Agent } from './lib/types'
 
 const mockWorkflows: Workflow[] = [
@@ -89,6 +91,13 @@ export default function Home() {
       sentAt: new Date(Date.now() - 1800000)
     }
   ])
+  
+  const [notifications, setNotifications] = useState<Array<{
+    id: string
+    type: 'success' | 'error' | 'info'
+    message: string
+    timestamp: Date
+  }>>([])
 
   const toggleWorkflow = (id: string) => {
     setWorkflows(prev => prev.map(w => 
@@ -123,6 +132,12 @@ export default function Home() {
       createdAt: new Date()
     }
     setWorkflows(prev => [...prev, emailWorkflow])
+    setNotifications(prev => [...prev, {
+      id: Date.now().toString(),
+      type: 'info',
+      message: `Email workflow "${data.name}" created`,
+      timestamp: new Date()
+    }])
   }
 
   const sendEmail = async (taskId: string) => {
@@ -146,6 +161,12 @@ export default function Home() {
             ? { ...t, status: 'sent', sentAt: new Date() }
             : t
         ))
+        setNotifications(prev => [...prev, {
+          id: Date.now().toString(),
+          type: 'success',
+          message: `Email sent to ${task.recipient}`,
+          timestamp: new Date()
+        }])
       }
     } catch (error) {
       setEmailTasks(prev => prev.map(t => 
@@ -153,6 +174,12 @@ export default function Home() {
           ? { ...t, status: 'failed' }
           : t
       ))
+      setNotifications(prev => [...prev, {
+        id: Date.now().toString(),
+        type: 'error',
+        message: `Failed to send email to ${task?.recipient}`,
+        timestamp: new Date()
+      }])
     }
   }
 
@@ -187,6 +214,15 @@ export default function Home() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Email Automation Status */}
+        <div className="mb-6">
+          <EmailAutomationIndicator 
+            status={emailTasks.some(t => t.status === 'pending') ? 'active' : 'completed'}
+            count={emailTasks.filter(t => t.status === 'pending').length}
+            nextRun={emailTasks.find(t => t.status === 'pending')?.scheduledAt}
+          />
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -270,6 +306,11 @@ export default function Home() {
         isOpen={isEmailModalOpen}
         onClose={() => setIsEmailModalOpen(false)}
         onCreate={createEmailWorkflow}
+      />
+      
+      <EmailNotificationBanner
+        notifications={notifications}
+        onDismiss={(id) => setNotifications(prev => prev.filter(n => n.id !== id))}
       />
     </div>
   )
