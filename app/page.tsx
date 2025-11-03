@@ -1,10 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Zap, Bot, BarChart3 } from 'lucide-react'
+import { Plus, Zap, Bot, BarChart3, Mail } from 'lucide-react'
 import WorkflowCard from './components/WorkflowCard'
 import AgentCard from './components/AgentCard'
 import CreateWorkflowModal from './components/CreateWorkflowModal'
+import EmailWorkflowModal from './components/EmailWorkflowModal'
+import EmailTaskCard from './components/EmailTaskCard'
+import AIContentGenerator from './components/AIContentGenerator'
 import { Workflow, Agent } from './lib/types'
 
 const mockWorkflows: Workflow[] = [
@@ -61,6 +64,24 @@ const mockAgents: Agent[] = [
 export default function Home() {
   const [workflows, setWorkflows] = useState<Workflow[]>(mockWorkflows)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
+  const [emailTasks, setEmailTasks] = useState([
+    {
+      id: '1',
+      recipient: 'user@example.com',
+      subject: 'Weekly Newsletter',
+      status: 'pending' as const,
+      scheduledAt: new Date(Date.now() + 3600000)
+    },
+    {
+      id: '2',
+      recipient: 'team@company.com',
+      subject: 'Project Update',
+      status: 'sent' as const,
+      scheduledAt: new Date(Date.now() - 3600000),
+      sentAt: new Date(Date.now() - 1800000)
+    }
+  ])
 
   const toggleWorkflow = (id: string) => {
     setWorkflows(prev => prev.map(w => 
@@ -82,6 +103,52 @@ export default function Home() {
     setWorkflows(prev => [...prev, newWorkflow])
   }
 
+  const createEmailWorkflow = (data: any) => {
+    const emailWorkflow: Workflow = {
+      id: Date.now().toString(),
+      name: data.name,
+      description: data.description,
+      status: 'active',
+      steps: [
+        { id: '1', type: 'trigger', name: `${data.config.trigger} Trigger`, config: {} },
+        { id: '2', type: 'action', name: 'Send Email', config: data.config }
+      ],
+      createdAt: new Date()
+    }
+    setWorkflows(prev => [...prev, emailWorkflow])
+  }
+
+  const sendEmail = async (taskId: string) => {
+    const task = emailTasks.find(t => t.id === taskId)
+    if (!task) return
+
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: task.recipient,
+          subject: task.subject,
+          template: 'Email content here'
+        })
+      })
+
+      if (response.ok) {
+        setEmailTasks(prev => prev.map(t => 
+          t.id === taskId 
+            ? { ...t, status: 'sent' as const, sentAt: new Date() }
+            : t
+        ))
+      }
+    } catch (error) {
+      setEmailTasks(prev => prev.map(t => 
+        t.id === taskId 
+          ? { ...t, status: 'failed' as const }
+          : t
+      ))
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -92,13 +159,22 @@ export default function Home() {
               <Zap className="w-8 h-8 text-blue-600" />
               <h1 className="text-2xl font-bold text-gray-900">AgentFlow</h1>
             </div>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-            >
-              <Plus size={16} />
-              <span>New Workflow</span>
-            </button>
+            <div className="flex space-x-3">
+              <button 
+                onClick={() => setIsEmailModalOpen(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2"
+              >
+                <Mail size={16} />
+                <span>Email Workflow</span>
+              </button>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+              >
+                <Plus size={16} />
+                <span>New Workflow</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -159,11 +235,20 @@ export default function Home() {
           {/* Agents */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-6">AI Agents</h2>
-            <div className="space-y-4">
+            <div className="space-y-4 mb-8">
               {mockAgents.map(agent => (
                 <AgentCard key={agent.id} agent={agent} />
               ))}
             </div>
+            
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Email Tasks</h3>
+            <div className="space-y-3 mb-8">
+              {emailTasks.map(task => (
+                <EmailTaskCard key={task.id} task={task} onSend={sendEmail} />
+              ))}
+            </div>
+            
+            <AIContentGenerator />
           </div>
         </div>
       </div>
@@ -172,6 +257,12 @@ export default function Home() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onCreate={createWorkflow}
+      />
+      
+      <EmailWorkflowModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        onCreate={createEmailWorkflow}
       />
     </div>
   )
