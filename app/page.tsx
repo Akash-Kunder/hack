@@ -10,6 +10,8 @@ import EmailTaskCard from './components/EmailTaskCard'
 import AIContentGenerator from './components/AIContentGenerator'
 import EmailAutomationIndicator from './components/EmailAutomationIndicator'
 import EmailNotificationBanner from './components/EmailNotificationBanner'
+import EmailAgent from './components/EmailAgent'
+import EmailHistory from './components/EmailHistory'
 import { Workflow, Agent } from './lib/types'
 
 const mockWorkflows: Workflow[] = [
@@ -98,6 +100,16 @@ export default function Home() {
     message: string
     timestamp: Date
   }>>([])
+  
+  const [emailHistory, setEmailHistory] = useState<Array<{
+    id: string
+    recipient: string
+    subject: string
+    status: 'sent' | 'pending' | 'failed'
+    timestamp: Date
+    aiEnhanced: boolean
+    content?: string
+  }>>([])
 
   const toggleWorkflow = (id: string) => {
     setWorkflows(prev => prev.map(w => 
@@ -183,6 +195,63 @@ export default function Home() {
     }
   }
 
+  const handleAgentEmail = async (emailData: any) => {
+    const emailId = Date.now().toString()
+    
+    // Add to history as pending
+    setEmailHistory(prev => [{
+      id: emailId,
+      recipient: emailData.recipient,
+      subject: emailData.subject,
+      status: 'pending',
+      timestamp: new Date(),
+      aiEnhanced: emailData.useAI,
+      content: emailData.template
+    }, ...prev])
+
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailData)
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // Update history to sent
+        setEmailHistory(prev => prev.map(email => 
+          email.id === emailId 
+            ? { ...email, status: 'sent', content: result.content }
+            : email
+        ))
+        
+        setNotifications(prev => [...prev, {
+          id: Date.now().toString(),
+          type: 'success',
+          message: `Email sent successfully to ${emailData.recipient}`,
+          timestamp: new Date()
+        }])
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      // Update history to failed
+      setEmailHistory(prev => prev.map(email => 
+        email.id === emailId 
+          ? { ...email, status: 'failed' }
+          : email
+      ))
+      
+      setNotifications(prev => [...prev, {
+        id: Date.now().toString(),
+        type: 'error',
+        message: `Failed to send email to ${emailData.recipient}`,
+        timestamp: new Date()
+      }])
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -252,7 +321,7 @@ export default function Home() {
               <BarChart3 className="w-8 h-8 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Tasks Completed</p>
-                <p className="text-2xl font-bold text-gray-900">247</p>
+                <p className="text-2xl font-bold text-gray-900">{emailHistory.filter(e => e.status === 'sent').length}</p>
               </div>
             </div>
           </div>
@@ -264,7 +333,7 @@ export default function Home() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900">Workflows</h2>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 mb-8">
               {workflows.map(workflow => (
                 <WorkflowCard
                   key={workflow.id}
@@ -273,9 +342,12 @@ export default function Home() {
                 />
               ))}
             </div>
+            
+            {/* Email Agent */}
+            <EmailAgent onSendEmail={handleAgentEmail} />
           </div>
 
-          {/* Agents */}
+          {/* Right Sidebar */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-6">AI Agents</h2>
             <div className="space-y-4 mb-8">
@@ -291,7 +363,7 @@ export default function Home() {
               ))}
             </div>
             
-            <AIContentGenerator />
+            <EmailHistory emails={emailHistory} />
           </div>
         </div>
       </div>
