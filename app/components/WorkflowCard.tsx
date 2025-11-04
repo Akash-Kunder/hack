@@ -1,6 +1,6 @@
 'use client'
 
-import { Play, Pause, Settings } from 'lucide-react'
+import { Play, Pause, Settings, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { Workflow } from '../lib/types'
 
